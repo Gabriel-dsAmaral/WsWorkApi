@@ -1,0 +1,1 @@
+"""WsWorkApi application package."""
