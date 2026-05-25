@@ -1,20 +1,24 @@
 import uuid
+from decimal import Decimal
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.carro import Carro
+from app.models.combustivel import Combustivel
 from app.repositories.base import PaginatedResult
 from app.repositories.car_repository import CarFilters, CarRepository
-from app.repositories.model_repository import ModelRepository
+from app.repositories.model_repository import ModelBrandContext, ModelRepository
 from app.schemas.carro import CarroCreateRequest, CarroUpdateRequest
 from app.schemas.common import PaginationParams
+from app.services.ai_description_service import AIDescriptionService, CarDescriptionContext
 
 
 class CarService:
     def __init__(self, db: Session) -> None:
         self.repository = CarRepository(db)
         self.model_repository = ModelRepository(db)
+        self.ai_description_service = AIDescriptionService()
 
     def get_by_id(self, car_id: uuid.UUID) -> Carro:
         carro = self.repository.get_by_id(car_id)
@@ -36,8 +40,11 @@ class CarService:
         )
 
     def create_for_user(self, user_id: uuid.UUID, data: CarroCreateRequest) -> Carro:
-        self._ensure_model_exists(data.modelo_id)
-        return self.repository.create(**data.model_dump(), usuario_id=user_id)
+        model_context = self._get_model_context(data.modelo_id)
+        car_data = data.model_dump()
+        car_data["descricao"] = self._generate_description(car_data, model_context)
+        car_data["usuario_id"] = user_id
+        return self.repository.create(**car_data)
 
     def update_for_user(
         self,
@@ -49,8 +56,9 @@ class CarService:
         self._ensure_owner(carro, user_id)
 
         update_data = data.model_dump(exclude_unset=True)
-        if "modelo_id" in update_data:
-            self._ensure_model_exists(update_data["modelo_id"])
+        merged_data = self._merge_car_data(carro, update_data)
+        model_context = self._get_model_context(merged_data["modelo_id"])
+        update_data["descricao"] = self._generate_description(merged_data, model_context)
 
         return self.repository.update(carro, **update_data)
 
@@ -59,12 +67,44 @@ class CarService:
         self._ensure_owner(carro, user_id)
         self.repository.soft_delete(carro)
 
-    def _ensure_model_exists(self, model_id: uuid.UUID) -> None:
-        if self.model_repository.get_by_id(model_id) is None:
+    def _get_model_context(self, model_id: uuid.UUID) -> ModelBrandContext:
+        context = self.model_repository.get_with_brand(model_id)
+        if context is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Modelo não encontrado",
             )
+        return context
+
+    def _generate_description(
+        self,
+        car_data: dict[str, object],
+        model_context: ModelBrandContext,
+    ) -> str:
+        context = CarDescriptionContext(
+            marca=model_context.marca,
+            nome_modelo=model_context.nome,
+            ano=int(car_data["ano"]),
+            combustivel=car_data["combustivel"],
+            cor=str(car_data["cor"]),
+            quilometragem=int(car_data["quilometragem"]),
+            num_portas=int(car_data["num_portas"]),
+            valor_anuncio=Decimal(str(car_data["valor_anuncio"])),
+            valor_fipe=model_context.valor_fipe,
+        )
+        return self.ai_description_service.generate(context)
+
+    @staticmethod
+    def _merge_car_data(carro: Carro, update_data: dict[str, object]) -> dict[str, object]:
+        return {
+            "modelo_id": update_data.get("modelo_id", carro.modelo_id),
+            "ano": update_data.get("ano", carro.ano),
+            "combustivel": update_data.get("combustivel", carro.combustivel),
+            "cor": update_data.get("cor", carro.cor),
+            "quilometragem": update_data.get("quilometragem", carro.quilometragem),
+            "num_portas": update_data.get("num_portas", carro.num_portas),
+            "valor_anuncio": update_data.get("valor_anuncio", carro.valor_anuncio),
+        }
 
     @staticmethod
     def _ensure_owner(carro: Carro, user_id: uuid.UUID) -> None:

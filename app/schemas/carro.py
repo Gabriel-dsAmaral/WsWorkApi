@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas.base import TimestampSchema
 from app.schemas.validators import (
     AnoValido,
-    DescricaoCurta,
     NumPortasValido,
     QuilometragemValida,
     ValorPositivo,
@@ -26,7 +25,6 @@ class CarroCreateRequest(BaseModel):
                     "cor": "Prata",
                     "quilometragem": 35000,
                     "valor_anuncio": 98900.00,
-                    "descricao": "Único dono, revisões em concessionária.",
                 }
             ]
         }
@@ -39,7 +37,6 @@ class CarroCreateRequest(BaseModel):
     cor: str = Field(..., min_length=1, max_length=100)
     quilometragem: QuilometragemValida
     valor_anuncio: ValorPositivo
-    descricao: DescricaoCurta = None
 
 
 class CarroUpdateRequest(BaseModel):
@@ -53,7 +50,6 @@ class CarroUpdateRequest(BaseModel):
                     "cor": "Preto",
                     "quilometragem": 38000,
                     "valor_anuncio": 95900.00,
-                    "descricao": "Preço reduzido.",
                 }
             ]
         }
@@ -66,7 +62,6 @@ class CarroUpdateRequest(BaseModel):
     cor: str | None = Field(default=None, min_length=1, max_length=100)
     quilometragem: QuilometragemValida | None = None
     valor_anuncio: ValorPositivo | None = None
-    descricao: DescricaoCurta | None = None
 
 
 class CarroResponse(TimestampSchema):
@@ -84,7 +79,7 @@ class CarroResponse(TimestampSchema):
                     "cor": "Prata",
                     "quilometragem": 35000,
                     "valor_anuncio": 98900.00,
-                    "descricao": "Único dono, revisões em concessionária.",
+                    "descricao": "Baixa quilometragem e excelente estado.",
                     "created_at": "2026-01-15T10:30:00Z",
                     "updated_at": "2026-01-15T10:30:00Z",
                     "deleted_at": None,

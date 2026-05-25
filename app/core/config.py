@@ -20,6 +20,9 @@ class Settings(BaseModel):
         default_factory=lambda: int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
     )
 
+    gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
+    gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
+
 
 @lru_cache
 def get_settings() -> Settings:
