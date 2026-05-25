@@ -71,7 +71,7 @@ cp .env.example .env
 ### 2. Instalar dependências
 
 ```bash
-poetry install
+poetry install --no-root
 ```
 
 ### 3. Subir o banco (opcional — via Docker)
