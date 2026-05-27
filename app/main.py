@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.config import get_settings
+from app.core.cors import setup_cors
 from app.routes import router
 
 
@@ -20,6 +21,8 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         lifespan=lifespan,
     )
+
+    setup_cors(app, settings)
 
     app.include_router(router)
 
